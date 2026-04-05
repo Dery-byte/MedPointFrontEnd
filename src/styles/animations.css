@@ -1,0 +1,533 @@
+/* ═══════════════════════════════════════════════════════════════════
+   MEDPOINT STORE — Animation System
+   Philosophy: Water / liquid flow. Nothing snaps. Everything pours.
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Easing curves — the soul of liquid motion ───────────────────── */
+:root {
+  --ease-out-expo:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-back:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:     cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-fluid:      cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --dur-fast:        180ms;
+  --dur-mid:         320ms;
+  --dur-slow:        520ms;
+  --dur-xslow:       800ms;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   KEYFRAME LIBRARY
+══════════════════════════════════════════════════════════════════ */
+
+@keyframes liquidIn {
+  0%   { opacity: 0; transform: translateY(32px) scale(0.96); filter: blur(4px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes liquidInLeft {
+  0%   { opacity: 0; transform: translateX(-40px) scale(0.97); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes liquidInRight {
+  0%   { opacity: 0; transform: translateX(40px) scale(0.97); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes liquidInUp {
+  0%   { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ripple {
+  0%   { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(4); opacity: 0; }
+}
+
+@keyframes heartBurst {
+  0%   { transform: scale(1); }
+  25%  { transform: scale(1.4); }
+  50%  { transform: scale(0.9); }
+  75%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
+
+@keyframes waveIn {
+  0%   { clip-path: polygon(0 100%, 100% 100%, 100% 100%, 0 100%); opacity: 0; }
+  100% { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes blobMorph {
+  0%,100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  25%     { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+  50%     { border-radius: 50% 60% 30% 60% / 30% 60% 70% 40%; }
+  75%     { border-radius: 70% 30% 50% 40% / 40% 70% 30% 60%; }
+}
+
+@keyframes staggerFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes badgePop {
+  0%   { transform: scale(0) rotate(-10deg); }
+  70%  { transform: scale(1.12) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+@keyframes scanLine {
+  0%   { top: -4px; }
+  100% { top: 100%; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--glow-color, 30,77,43), 0.4); }
+  50%       { box-shadow: 0 0 0 12px rgba(var(--glow-color, 30,77,43), 0); }
+}
+
+@keyframes cartBounce {
+  0%   { transform: translateY(0); }
+  30%  { transform: translateY(-6px); }
+  60%  { transform: translateY(-2px); }
+  80%  { transform: translateY(-4px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes numberTick {
+  from { transform: translateY(-100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes skeletonWave {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UTILITY ANIMATION CLASSES
+══════════════════════════════════════════════════════════════════ */
+
+/* Base animate-in trigger — applied by AnimateIn component */
+.animate-hidden {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity var(--dur-slow) var(--ease-out-expo),
+              transform var(--dur-slow) var(--ease-out-expo);
+}
+.animate-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger delays for children */
+.stagger-1  { transition-delay: 60ms !important; }
+.stagger-2  { transition-delay: 120ms !important; }
+.stagger-3  { transition-delay: 180ms !important; }
+.stagger-4  { transition-delay: 240ms !important; }
+.stagger-5  { transition-delay: 300ms !important; }
+.stagger-6  { transition-delay: 360ms !important; }
+.stagger-7  { transition-delay: 420ms !important; }
+.stagger-8  { transition-delay: 480ms !important; }
+
+/* Individual directional reveals */
+.reveal-up    { animation: liquidIn       var(--dur-slow) var(--ease-out-expo) both; }
+.reveal-left  { animation: liquidInLeft   var(--dur-slow) var(--ease-out-expo) both; }
+.reveal-right { animation: liquidInRight  var(--dur-slow) var(--ease-out-expo) both; }
+.reveal-down  { animation: liquidInUp     var(--dur-slow) var(--ease-out-expo) both; }
+
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+.delay-600 { animation-delay: 600ms; }
+.delay-700 { animation-delay: 700ms; }
+.delay-800 { animation-delay: 800ms; }
+
+/* Float */
+.float { animation: floatY 4s var(--ease-in-out) infinite; }
+
+/* Gradient animated text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 50%, var(--primary-light) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 4s var(--ease-in-out) infinite;
+}
+
+/* Shimmer skeleton */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--cream-dark);
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.5) 50%,
+    transparent 100%
+  );
+  animation: skeletonWave 1.6s infinite;
+}
+
+/* Page transition wrapper */
+.page-transition-enter {
+  animation: waveIn var(--dur-slow) var(--ease-out-expo) both;
+}
+
+/* Heart burst on favorite */
+.heart-burst {
+  animation: heartBurst 0.4s var(--ease-spring);
+}
+
+/* Cart badge bounce */
+.cart-badge-bounce {
+  animation: cartBounce 0.5s var(--ease-spring);
+}
+
+/* Badge pop-in */
+.badge-pop {
+  animation: badgePop 0.4s var(--ease-spring) both;
+}
+
+/* Ripple container */
+.ripple-host {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  pointer-events: none;
+  animation: ripple 0.6s var(--ease-out-expo) forwards;
+  transform-origin: center;
+}
+
+/* Blob background element */
+.blob-morph {
+  animation: blobMorph 12s var(--ease-in-out) infinite;
+}
+
+/* Gradient background shift */
+.gradient-bg-shift {
+  background-size: 400% 400%;
+  animation: gradientShift 8s var(--ease-in-out) infinite;
+}
+
+/* Number tick (for cart count changes) */
+.number-tick {
+  animation: numberTick 0.2s var(--ease-out-expo);
+}
+
+/* Glow pulse on hover */
+.glow-pulse:hover {
+  animation: pulseGlow 1.5s infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PRODUCT CARD ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.product-card {
+  transition:
+    transform var(--dur-mid) var(--ease-out-expo),
+    box-shadow var(--dur-mid) var(--ease-out-expo),
+    border-color var(--dur-mid) var(--ease-in-out);
+}
+.product-card:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
+}
+.product-card:active {
+  transform: translateY(-2px) scale(0.99);
+  transition-duration: var(--dur-fast);
+}
+
+.pc-img { transition: transform 0.6s var(--ease-fluid); }
+.product-card:hover .pc-img { transform: scale(1.08); }
+
+.pc-fav-btn {
+  transition:
+    opacity var(--dur-fast) var(--ease-out-expo),
+    transform var(--dur-mid) var(--ease-spring);
+}
+.pc-fav-btn:hover { transform: scale(1.2); }
+.pc-fav-btn:active { transform: scale(0.9); }
+
+.pc-add-btn {
+  transition:
+    background var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-fast) var(--ease-in-out);
+}
+.pc-add-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(30,77,43,0.3);
+}
+.pc-add-btn:active:not(:disabled) { transform: scale(0.92); }
+
+/* ══════════════════════════════════════════════════════════════════
+   NAVBAR ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.navbar {
+  transition:
+    background var(--dur-mid) var(--ease-in-out),
+    box-shadow var(--dur-mid) var(--ease-in-out),
+    border-color var(--dur-mid) var(--ease-in-out),
+    backdrop-filter var(--dur-mid) var(--ease-in-out);
+}
+
+.nav-link {
+  transition:
+    background var(--dur-fast) var(--ease-in-out),
+    color var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.nav-link:hover { transform: translateY(-1px); }
+
+.nav-icon-btn {
+  transition:
+    background var(--dur-fast) var(--ease-in-out),
+    color var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.nav-icon-btn:hover  { transform: scale(1.08); }
+.nav-icon-btn:active { transform: scale(0.92); }
+
+/* ══════════════════════════════════════════════════════════════════
+   BUTTON ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.btn-primary {
+  transition:
+    background var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-mid) var(--ease-in-out);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 100%);
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+.btn-primary:hover::after { opacity: 1; }
+.btn-primary:hover  { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(30,77,43,0.3); }
+.btn-primary:active { transform: translateY(0) scale(0.98); }
+
+.btn-outline {
+  transition:
+    border-color var(--dur-fast) var(--ease-in-out),
+    color var(--dur-fast) var(--ease-in-out),
+    background var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.btn-outline:hover  { transform: translateY(-1px); }
+.btn-outline:active { transform: translateY(0); }
+
+/* ══════════════════════════════════════════════════════════════════
+   DRAWER & MODAL ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.cart-drawer {
+  transition: transform var(--dur-slow) var(--ease-out-expo);
+}
+.drawer-backdrop {
+  transition: opacity var(--dur-mid) var(--ease-in-out);
+}
+
+.modal-overlay {
+  animation: none;
+  backdrop-filter: blur(0);
+  transition: backdrop-filter var(--dur-mid) var(--ease-in-out);
+}
+.modal-overlay.ready { backdrop-filter: blur(4px); }
+
+.admin-modal {
+  animation: liquidIn var(--dur-slow) var(--ease-out-expo) both;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FORM ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.form-input {
+  transition:
+    border-color var(--dur-fast) var(--ease-in-out),
+    box-shadow var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.form-input:focus { transform: translateY(-1px); }
+
+/* Field error shake */
+@keyframes fieldShake {
+  0%,100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(6px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+.field-shake { animation: fieldShake 0.4s var(--ease-spring); }
+
+/* ══════════════════════════════════════════════════════════════════
+   TOAST ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.toast {
+  animation: liquidInRight var(--dur-mid) var(--ease-out-expo) both;
+}
+@keyframes toastOut {
+  to { opacity: 0; transform: translateX(110%); }
+}
+.toast-leaving { animation: toastOut var(--dur-mid) var(--ease-in-out) forwards; }
+
+/* ══════════════════════════════════════════════════════════════════
+   DISCOUNT BADGE ANIMATION
+══════════════════════════════════════════════════════════════════ */
+
+.discount-badge {
+  animation: badgePop 0.5s var(--ease-spring) both;
+  position: relative;
+  overflow: hidden;
+}
+.discount-badge::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+  animation: shimmer 2.5s 0.6s infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SECTION ENTRANCE ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+/* Category pill hover */
+.category-pill {
+  transition:
+    border-color var(--dur-fast) var(--ease-in-out),
+    color var(--dur-fast) var(--ease-in-out),
+    background var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-fast) var(--ease-in-out);
+}
+.category-pill:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+.category-pill:active { transform: translateY(-1px); }
+
+/* Trust strip item hover */
+.trust-item {
+  transition: transform var(--dur-mid) var(--ease-spring);
+}
+.trust-item:hover { transform: translateY(-4px); }
+
+/* Sidebar cat button */
+.sidebar-cat-btn {
+  transition:
+    background var(--dur-fast) var(--ease-in-out),
+    color var(--dur-fast) var(--ease-in-out),
+    padding-left var(--dur-fast) var(--ease-out-expo);
+}
+.sidebar-cat-btn:hover,
+.sidebar-cat-active { padding-left: 16px; }
+
+/* ══════════════════════════════════════════════════════════════════
+   ADMIN ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.admin-stat-card {
+  transition:
+    transform var(--dur-mid) var(--ease-spring),
+    box-shadow var(--dur-mid) var(--ease-in-out),
+    border-color var(--dur-mid) var(--ease-in-out);
+}
+.admin-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.16);
+}
+
+.admin-nav-link {
+  transition:
+    background var(--dur-fast) var(--ease-in-out),
+    color var(--dur-fast) var(--ease-in-out),
+    padding-left var(--dur-mid) var(--ease-out-expo);
+}
+.admin-nav-link-active { padding-left: 18px; }
+
+.category-admin-card {
+  transition:
+    border-color var(--dur-fast) var(--ease-in-out),
+    transform var(--dur-mid) var(--ease-spring),
+    box-shadow var(--dur-mid) var(--ease-in-out);
+}
+.category-admin-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+
+/* Table row hover */
+.admin-table tr {
+  transition: background var(--dur-fast) var(--ease-in-out);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HERO ANIMATIONS
+══════════════════════════════════════════════════════════════════ */
+
+.hero-eyebrow { animation: liquidIn 0.6s var(--ease-out-expo) 0.1s both; }
+.hero-title   { animation: liquidIn 0.7s var(--ease-out-expo) 0.2s both; }
+.hero-sub     { animation: liquidIn 0.7s var(--ease-out-expo) 0.35s both; }
+.hero-search  { animation: liquidIn 0.7s var(--ease-out-expo) 0.5s both; }
+.hero-stats   { animation: liquidIn 0.7s var(--ease-out-expo) 0.65s both; }
+
+.hero-blob-1 { animation: blobMorph 18s var(--ease-in-out) infinite, floatY 8s var(--ease-in-out) infinite; }
+.hero-blob-2 { animation: blobMorph 14s var(--ease-in-out) 3s infinite reverse, floatY 6s var(--ease-in-out) 1s infinite; }
+
+/* Hero search focus ring */
+.hero-search-inner {
+  transition:
+    border-color var(--dur-fast) var(--ease-in-out),
+    box-shadow var(--dur-mid) var(--ease-out-expo),
+    transform var(--dur-fast) var(--ease-spring);
+}
+.hero-search-inner:focus-within { transform: scale(1.01); }
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE SPECIFIC — REDUCE MOTION
+══════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .hero-blob-1, .hero-blob-2 { animation: none; }
+}

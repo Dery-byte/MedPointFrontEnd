@@ -1,0 +1,12 @@
+export { default as AdminDashboard } from "./AdminDashboard";
+export { default as AdminStaff } from "./AdminStaff";
+export { default as AdminStock } from "./AdminStock";
+export { default as AdminRevenue } from "./AdminRevenue";
+export { default as AdminTransactions } from "./AdminTransactions";
+export { default as AdminDrugStore } from "./AdminDrugStore";
+export { default as AdminMart } from "./AdminMart";
+export { default as AdminHotel } from "./AdminHotel";
+export { default as AdminRestaurant } from "./AdminRestaurant";
+export { default as AdminPricing } from "./AdminPricing";
+export { default as AdminProducts } from "./AdminProducts";
+export { default as AdminReports } from "./AdminReports";
