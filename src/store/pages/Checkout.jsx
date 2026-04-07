@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Icon from "../../shared/components/Icon";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
-import { PaymentService, submitOrder, generateReference } from "../services/orderService";
+import { PaymentService, submitOrder, generateReference, initializePayment, verifyPayment } from "../services/orderService";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || "pk_test_DUMMY_KEY_REPLACE_ME";
@@ -75,25 +75,10 @@ export default function Checkout() {
   const [promoError,   setPromoError]   = useState("");
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [step,          setStep]         = useState(1);
-  const [processing,    setProcessing]   = useState(false);
-  const [errors,        setErrors]       = useState({});
-  const [summaryOpen,   setSummaryOpen]  = useState(false);
-  const [paystackReady, setPaystackReady] = useState(!!window.PaystackPop);
-
-  // ── Load Paystack inline script ───────────────────────────────────────────
-  useEffect(() => {
-    if (window.PaystackPop) { setPaystackReady(true); return; }
-    // Avoid adding the script twice (React StrictMode runs effects twice in dev)
-    if (document.querySelector('script[src*="paystack"]')) return;
-    const script = document.createElement("script");
-    script.src = "https://js.paystack.co/v1/inline.js";
-    script.async = true;
-    script.onload  = () => setPaystackReady(true);
-    script.onerror = () => console.warn("Paystack script failed to load");
-    document.head.appendChild(script);
-    // Do NOT remove on unmount — PaystackPop is a global singleton
-  }, []);
+  const [step,       setStep]      = useState(1);
+  const [processing, setProcessing] = useState(false);
+  const [errors,     setErrors]     = useState({});
+  const [summaryOpen,setSummaryOpen] = useState(false);
 
   // ── Pricing ───────────────────────────────────────────────────────────────
   const isPickup         = deliveryType === "pickup";
@@ -116,7 +101,7 @@ export default function Checkout() {
 
   const step2Valid = (() => {
     if (processing) return false;
-    if (payMethod === "paystack") return paystackReady;
+    if (payMethod === "paystack") return true;
     if (payMethod === "momo")     return momoPhone.replace(/\D/g, "").length >= 10;
     // card
     return (
@@ -205,49 +190,29 @@ export default function Checkout() {
     });
   }
 
-  /** Paystack popup flow */
-  function handlePaystackPay() {
-    if (!window.PaystackPop) {
-      toast({ message: "Paystack is still loading, please try again.", type: "error" });
-      return;
-    }
-    const reference = generateReference();
-    // Paystack requires a valid email — synthesise one from phone if not provided
+  /** Paystack redirect flow — calls backend to initialize, then redirects to Paystack */
+  async function handlePaystackPay() {
     const billingEmail = email.trim() || `${phone.replace(/\D/g, "")}@medpointstore.com`;
-
+    setProcessing(true);
     try {
-      const handler = window.PaystackPop.setup({
-        key:      PAYSTACK_KEY,
-        email:    billingEmail,
-        amount:   Math.round(grandTotal * 100), // pesewas
-        currency: "GHS",
-        ref:      reference,
-        label:    name,
-        metadata: {
-          custom_fields: [
-            { display_name: "Customer", variable_name: "customer_name", value: name },
-            { display_name: "Phone",    variable_name: "phone",          value: phone },
-            { display_name: "Delivery", variable_name: "delivery_type",  value: isPickup ? "Warehouse pickup" : selectedDelivery.label },
-          ],
-        },
-        callback: async (response) => {
-          setProcessing(true);
-          try {
-            await finaliseOrder("PAYSTACK", response.reference);
-          } catch (err) {
-            toast({ message: err.message || "Order submission failed. Contact support.", type: "error" });
-          } finally {
-            setProcessing(false);
-          }
-        },
-        onClose: () => {
-          toast({ message: "Payment window closed. Your order has not been placed.", type: "info" });
-        },
+      // 1. Register payment server-side → get authorizationUrl + reference
+      const init = await initializePayment({
+        email:       billingEmail,
+        amount:      grandTotal,
+        description: `MedPoint order — ${name}`,
       });
-      handler.openIframe();
+      if (!init.success) throw new Error(init.message || "Could not initialise payment");
+
+      // 2. Persist full order snapshot so OrderConfirmation can recover it after redirect
+      localStorage.setItem(`pending_order_${init.reference}`, JSON.stringify({
+        name, email: billingEmail, phone, deliveryAddress, items, grandTotal, payMethod: "PAYSTACK",
+      }));
+
+      // 3. Redirect browser to Paystack hosted checkout — backend callback handles the return
+      window.location.href = init.authorizationUrl;
     } catch (err) {
-      console.error("Paystack setup error:", err);
-      toast({ message: "Could not open payment window. Please try again.", type: "error" });
+      setProcessing(false);
+      toast({ message: err.message || "Could not open payment page. Please try again.", type: "error" });
     }
   }
 
@@ -495,11 +460,6 @@ export default function Checkout() {
                     <li><Icon name="momo" size={13} /> Mobile Money (MTN, Vodafone, AirtelTigo)</li>
                     <li><Icon name="building-2" size={13} /> Bank transfer</li>
                   </ul>
-                  {!paystackReady && (
-                    <p className="paystack-loading">
-                      <Icon name="loader" size={14} className="spin" /> Loading payment gateway…
-                    </p>
-                  )}
                 </div>
               )}
 
@@ -608,7 +568,6 @@ export default function Checkout() {
                 onClick={handlePay}
                 disabled={!step2Valid || processing}
                 type="button"
-                title={!paystackReady && payMethod === "paystack" ? "Payment gateway is loading…" : undefined}
               >
                 {processing ? (
                   <><Icon name="loader" size={18} className="spin" /> Processing payment…</>

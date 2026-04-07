@@ -15,6 +15,34 @@ import storeApi from "./storeApi";
  *   2. Replace initiateMomo with Hubtel Collect API
  */
 
+// ── Backend Payment API ──────────────────────────────────────────────────────
+
+/**
+ * Register a new payment transaction with the backend (Paystack server-side).
+ * POST /payments/initialize
+ * Returns { success, reference, accessCode, authorizationUrl }
+ */
+export async function initializePayment({ email, amount, callbackUrl, description }) {
+  const { data } = await api.post("/payments/initialize", {
+    email,
+    amount,
+    currency: "GHS",
+    callbackUrl,
+    description,
+  });
+  return data;
+}
+
+/**
+ * Verify a completed Paystack transaction by reference.
+ * GET /payments/verify/{reference}
+ * Returns { success, reference, status, amount }
+ */
+export async function verifyPayment(reference) {
+  const { data } = await api.get(`/payments/verify/${reference}`);
+  return data;
+}
+
 // ── Payment Stubs ────────────────────────────────────────────────────────────
 
 export const PaymentService = {
