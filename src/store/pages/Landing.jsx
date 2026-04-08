@@ -5,6 +5,7 @@ import ProductCard from "../components/ProductCard";
 import AnimateIn, { StaggerGrid } from "../components/AnimateIn";
 import { useConfig } from "../../config/ConfigContext";
 import MartService from "../services/martService";
+import { API_BASE } from "../../shared/services/apiBase";
 
 export default function Landing() {
   const { config }     = useConfig();
@@ -42,7 +43,6 @@ export default function Landing() {
   const showFeatured = featured.length > 0;
   const showSale     = onSale.length > 0;
   
-const IMAGE_BASE_API = "http://localhost:8080/api";
 
   return (
     <main className="landing">
@@ -216,7 +216,7 @@ const IMAGE_BASE_API = "http://localhost:8080/api";
                         <Link to={`/product/${p.id}`} className="sale-mini-card">
                           <div className="smc-img">
                             {p.imageUrl
-                              ? <img src= {`${IMAGE_BASE_API}${p.imageUrl}`} alt={p.imageUrl} />
+                              ? <img src= {`${API_BASE}${p.imageUrl}`} alt={p.imageUrl} />
                               : <div className="smc-img-ph"><Icon name="package" size={24} color="var(--muted)" /></div>}
                             <span className="smc-badge">
 

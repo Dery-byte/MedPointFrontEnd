@@ -9,6 +9,8 @@
  * or returns an empty response.
  */
 
+import { API_BASE } from "../shared/services/apiBase";
+
 export const DEFAULT_CONFIG = {
   // ── Identity ────────────────────────────────────────────────────
   storeName:      "MedPoint Store",
@@ -174,8 +176,6 @@ export const THEME_PRESETS = {
 
 // ── Config storage key (kept for backwards compat; no longer written to) ─────
 export const STORAGE_KEY = import.meta.env.VITE_STORE_CONFIG_KEY || "storeConfig_v1";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
 
 /**
  * Fetch config from the backend API.

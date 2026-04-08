@@ -1,10 +1,6 @@
 import axios from "axios";
 import devAuthService from "./devAuthService";
-
-// const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
-
-
-const API_BASE = import.meta.env.VITE_API_URL || "https://medpointbackend-k6k3.onrender.com/api";
+import { API_BASE } from "../../shared/services/apiBase";
 
 
 
