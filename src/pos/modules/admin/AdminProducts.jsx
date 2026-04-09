@@ -166,13 +166,13 @@ function DiscountEditor({ sym, price, hasDiscount, setHasDiscount, discType, set
             <div style={{ background: "var(--pal)", border: "1px solid var(--pl)", borderRadius: "var(--r)", padding: "12px 16px", marginTop: 4 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "var(--pd)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Live Preview</div>
               <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ color: "var(--g400)", textDecoration: "line-through", fontSize: 14 }}>{sym} {parseFloat(price).toFixed(2)}</span>
-                <span style={{ fontSize: 18, fontWeight: 800, color: "var(--p)" }}>{sym} {dp.toFixed(2)}</span>
+                <span style={{ color: "var(--g400)", textDecoration: "line-through", fontSize: 14 }}>{sym} {parseFloat(price ?? 0).toFixed(2)}</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: "var(--p)" }}>{sym} {(dp ?? 0).toFixed(2)}</span>
                 <span style={{ background: "var(--p)", color: "white", borderRadius: 4, padding: "2px 8px", fontSize: 11, fontWeight: 700 }}>
                   {discLabel || (discType === "percent" ? `${discValue}% OFF` : `Save ${sym}${discValue}`)}
                 </span>
               </div>
-              <div style={{ fontSize: 12, color: "var(--g500)", marginTop: 4 }}>Customer saves {sym} {(parseFloat(price) - dp).toFixed(2)}</div>
+              <div style={{ fontSize: 12, color: "var(--g500)", marginTop: 4 }}>Customer saves {sym} {(parseFloat(price ?? 0) - (dp ?? 0)).toFixed(2)}</div>
             </div>
           )}
         </div>
@@ -718,7 +718,7 @@ function MartPanel() {
                       </td>
                       <td><span style={{ background: "var(--g100)", color: "var(--g600)", borderRadius: 4, padding: "2px 8px", fontSize: 12, fontWeight: 600 }}>{p.cat}</span></td>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{sym} {p.price.toFixed(2)}</div>
+                        <div style={{ fontWeight: 600 }}>{sym} {(p.price ?? 0).toFixed(2)}</div>
                         {p.discount && (
                           <span style={{ background: "var(--green)", color: "white", borderRadius: 4, padding: "1px 6px", fontSize: 11, fontWeight: 700 }}>
                             {p.discounType === "PERCENT" ? `−${p.discount}%` : `−${sym}${p.discount}`}
@@ -731,7 +731,7 @@ function MartPanel() {
                         )}
                       </td>
                       <td>
-                        <div style={{ fontWeight: 600 }}>{sym} {p.costPrice.toFixed(2)}</div>
+                        <div style={{ fontWeight: 600 }}>{sym} {(p.price ?? 0).toFixed(2)}</div>
                       </td>
 
 
