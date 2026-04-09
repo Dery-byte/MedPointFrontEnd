@@ -20,6 +20,7 @@ export function mapProduct(p) {
     lowStock:    p.lowStock ?? false,
     featured:    p.featured ?? false,
     discount:    p.discount ?? null,
+    discounType: p.discountType ?? null,
     onSale:      p.onSale ?? null,
     variations:  p.variations ?? [],
     tags:        p.tags ?? [],

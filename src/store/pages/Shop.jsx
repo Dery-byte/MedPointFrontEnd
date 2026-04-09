@@ -157,7 +157,7 @@ export default function Shop() {
           {/* Sidebar / Filter Panel */}
           <aside className={`shop-sidebar${filterOpen ? " shop-sidebar-open" : ""}`}>
             <div className="sidebar-section">
-              <h3 className="sidebar-label">Searchaaaaa</h3>
+              <h3 className="sidebar-label">Search</h3>
               <div className="sidebar-search">
                 <Icon name="search" size={16} color="var(--muted)" />
                 <input

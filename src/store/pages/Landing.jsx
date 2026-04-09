@@ -8,15 +8,15 @@ import MartService from "../services/martService";
 import { API_BASE } from "../../shared/services/apiBase";
 
 export default function Landing() {
-  const { config }     = useConfig();
-  const sym            = config.currencySymbol;
-  const [featured,  setFeatured]  = useState([]);
-  const [newest,    setNewest]    = useState([]);
-  const [onSale,    setOnSale]    = useState([]);
+  const { config } = useConfig();
+  const sym = config.currencySymbol;
+  const [featured, setFeatured] = useState([]);
+  const [newest, setNewest] = useState([]);
+  const [onSale, setOnSale] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [searchQuery, setSearch]  = useState("");
-  const navigate                  = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearch] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -41,8 +41,8 @@ export default function Landing() {
   };
 
   const showFeatured = featured.length > 0;
-  const showSale     = onSale.length > 0;
-  
+  const showSale = onSale.length > 0;
+
 
   return (
     <main className="landing">
@@ -188,6 +188,10 @@ export default function Landing() {
         </section>
       )}
 
+
+
+
+
       {/* ═══════════════════════════════════════════════
           ON SALE BANNER STRIP
       ═══════════════════════════════════════════════ */}
@@ -207,7 +211,14 @@ export default function Landing() {
                   </Link>
                 </div>
                 <div className="sale-strip-cards">
-                  {onSale.map((p, i) => {
+
+
+
+
+
+
+
+                  {/* {onSale.map((p, i) => {
                     const disc = p.discount.type === "percent"
                       ? p.price * (1 - p.discount.value / 100)
                       : Math.max(0, p.price - p.discount.value);
@@ -223,6 +234,36 @@ export default function Landing() {
 <p>{JSON.stringify(p)}</p> 
                               {p.discount.label || (p.discount.type === "percent" ? `${p.discount.value}% OFF` : "Sale")}
                             </span>
+                          </div>
+                          <div className="smc-info">
+                            <p className="smc-name">{p.name}</p>
+                            <div className="smc-prices">
+                              <span className="smc-price">{sym} {disc.toFixed(2)}</span>
+                              <span className="smc-orig">{sym} {p.price.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        </Link>
+                      </AnimateIn>
+                    );
+                  })} */}
+
+                  {onSale.map((p, i) => {
+                    const disc = p.discounType === "PERCENT"
+                      ? p.price * (1 - p.discount / 100)
+                      : Math.max(0, p.price - p.discount);
+
+                    const badge = p.discounType === "PERCENT"
+                      ? `${p.discount}% OFF`
+                      : `Save ${sym}${Number(p.discount).toFixed(2)}`;
+
+                    return (
+                      <AnimateIn key={p.id} delay={i * 80}>
+                        <Link to={`/product/${p.id}`} className="sale-mini-card">
+                          <div className="smc-img">
+                            {p.imageUrl
+                              ? <img src={`${API_BASE}${p.imageUrl}`} alt={p.name} />
+                              : <div className="smc-img-ph"><Icon name="package" size={24} color="var(--muted)" /></div>}
+                            <span className="smc-badge">{badge}</span>
                           </div>
                           <div className="smc-info">
                             <p className="smc-name">{p.name}</p>
@@ -286,10 +327,10 @@ export default function Landing() {
           <div className="container">
             <div className="trust-grid">
               {[
-                { icon: "package",    title: "Quality Guaranteed",  sub: "Every product verified" },
-                { icon: "map-pin",    title: "Local Delivery",      sub: "Fast delivery across the area" },
-                { icon: "momo",       title: "Easy Payments",       sub: "Momo, Visa, Mastercard" },
-                { icon: "refresh-cw", title: "Easy Returns",        sub: "Hassle-free process" },
+                { icon: "package", title: "Quality Guaranteed", sub: "Every product verified" },
+                { icon: "map-pin", title: "Local Delivery", sub: "Fast delivery across the area" },
+                { icon: "momo", title: "Easy Payments", sub: "Momo, Visa, Mastercard" },
+                { icon: "refresh-cw", title: "Easy Returns", sub: "Hassle-free process" },
               ].map(item => (
                 <div key={item.title} className="trust-item">
                   <div className="trust-icon">

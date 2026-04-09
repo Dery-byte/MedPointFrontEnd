@@ -9,7 +9,7 @@ import { useFavorites } from "../context/FavoritesContext";
 import { useToast } from "../components/Toast";
 import { useConfig } from "../../config/ConfigContext";
 import MartService from "../services/martService";
-import {getImageUrl} from "../../shared/services/image";
+import { getImageUrl } from "../../shared/services/image";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -35,20 +35,43 @@ export default function ProductDetail() {
     setSelected({});
     setLocalQty(1);
     MartService.getById(id)
-      .then(async p => {
-        setProduct(p);
-        const all = await MartService.getAll();
-        setRelated(all.filter(x => x.cat === p.cat && x.id !== p.id).slice(0, 4));
-      })
+    .then(async p => {
+  // Normalize variations
+  let variations = p.variations;
+  if (typeof variations === "string" && variations.trim().startsWith("[")) {
+    try { variations = JSON.parse(variations); } catch { variations = []; }
+  } else if (!Array.isArray(variations)) {
+    variations = [];
+  }
+
+  // Normalize tags
+  let tags = p.tags;
+  if (typeof tags === "string" && tags.trim()) {
+    tags = tags.split(",").map(t => t.trim());
+  } else if (!Array.isArray(tags)) {
+    tags = [];
+  }
+
+  setProduct({ ...p, variations, tags });
+  const all = await MartService.getAll();
+  setRelated(all.filter(x => x.cat === p.cat && x.id !== p.id).slice(0, 4));
+})
       .catch(() => navigate("/shop"))
       .finally(() => setLoading(false));
   }, [id]);
 
   // When no variations, allPicked is always true
+  // useEffect(() => {
+  //   if (!product) return;
+  //   if (!product.variations?.length) { setAllPicked(true); return; }
+  //   setAllPicked(product.variations.every(v => selected[v.name]));
+  // }, [selected, product]);
+
   useEffect(() => {
     if (!product) return;
-    if (!product.variations?.length) { setAllPicked(true); return; }
-    setAllPicked(product.variations.every(v => selected[v.name]));
+    const vars = Array.isArray(product.variations) ? product.variations : [];
+    if (!vars.length) { setAllPicked(true); return; }
+    setAllPicked(vars.every(v => selected[v.name]));
   }, [selected, product]);
 
   if (loading) return (
@@ -67,7 +90,8 @@ export default function ProductDetail() {
   const inCart = isInCart(product.id);
   const cartItem = items.find(i => i.id === product.id);
   const favorited = isFav(product.id);
-  const hasVars = product.variations?.length > 0;
+  // const hasVars = product.variations?.length > 0;
+  const hasVars = Array.isArray(product.variations) && product.variations.length > 0;
 
   // Variation-driven price / stock
   let displayPrice = product.price;
@@ -80,13 +104,24 @@ export default function ProductDetail() {
   }
 
   // Apply discount on top of variation price
+  // let finalPrice = displayPrice;
+  // if (product.discount) {
+  //   if (product.discount.type === "percent")
+  //     finalPrice = displayPrice * (1 - product.discount.value / 100);
+  //   else
+  //     finalPrice = Math.max(0, displayPrice - product.discount.value);
+  // }
+
+  // WITH:
   let finalPrice = displayPrice;
   if (product.discount) {
-    if (product.discount.type === "percent")
-      finalPrice = displayPrice * (1 - product.discount.value / 100);
+    if (product.discounType === "PERCENT")
+      finalPrice = displayPrice * (1 - product.discount / 100);
     else
-      finalPrice = Math.max(0, displayPrice - product.discount.value);
+      finalPrice = Math.max(0, displayPrice - product.discount);
   }
+
+
 
   const outOfStock = hasVars ? (allPicked && displayStock <= 0) : product.stock <= 0;
 
@@ -104,10 +139,15 @@ export default function ProductDetail() {
     });
   };
 
-  const discountLabel = product.discount?.label
-    || (product.discount?.type === "percent" ? `${product.discount.value}% OFF`
-      : `Save ${sym} ${product.discount?.value}`);
+  // const discountLabel = product.discount?.label
+  //   || (product.discountype === "PERCENT" ? `${product.discount}% OFF`
+  //     : `Save ${sym} ${product.discount}`);
 
+
+  // WITH:
+  const discountLabel = product.discounType === "PERCENT"
+    ? `${product.discount}% OFF`
+    : `Save ${sym} ${product.discount?.toFixed(2)}`;
   return (
     <main className="container product-detail-page">
 
@@ -130,7 +170,7 @@ export default function ProductDetail() {
         <AnimateIn from="left" className="pd-image-col">
           <div className="pd-image-wrap">
             {product.imageUrl
-              ? <img className="pd-image"  src= {getImageUrl(product.imageUrl)} loading="lazy" alt={product.name} />
+              ? <img className="pd-image" src={getImageUrl(product.imageUrl)} loading="lazy" alt={product.name} />
               : <div className="pd-image-placeholder">
                 <Icon name="package" size={80} color="var(--muted)" />
               </div>}
@@ -157,13 +197,25 @@ export default function ProductDetail() {
           <h1 className="pd-name">{product.name}</h1>
 
           {/* Tags */}
-          {product.tags?.length > 0 && (
+          {(() => {
+            const tags = Array.isArray(product.tags)
+              ? product.tags
+              : typeof product.tags === "string" && product.tags.trim()
+                ? product.tags.split(",").map(t => t.trim())
+                : [];
+            return tags.length > 0 ? (
+              <div className="pd-tags">
+                {tags.map(tag => <span key={tag} className="pd-tag">{tag}</span>)}
+              </div>
+            ) : null;
+          })()}
+          {/* {product.tags?.length > 0 && (
             <div className="pd-tags">
               {product.tags.map(tag => (
                 <span key={tag} className="pd-tag">{tag}</span>
               ))}
             </div>
-          )}
+          )} */}
 
           {/* Price */}
           <div className="pd-price-area">
@@ -323,16 +375,22 @@ export default function ProductDetail() {
             <h2 className="related-title">More from {product.cat}</h2>
             <div className="products-grid">
               {related.map(p => {
+                // const rDisc = p.discount
+                //   ? (p.discount.type === "percent"
+                //     ? p.price * (1 - p.discount.value / 100)
+                //     : Math.max(0, p.price - p.discount.value))
+                //   : null;
+
                 const rDisc = p.discount
-                  ? (p.discount.type === "percent"
-                    ? p.price * (1 - p.discount.value / 100)
-                    : Math.max(0, p.price - p.discount.value))
+                  ? (p.discountType === "PERCENT"
+                    ? p.price * (1 - p.discount / 100)
+                    : Math.max(0, p.price - p.discount))
                   : null;
                 return (
                   <Link key={p.id} to={`/product/${p.id}`} className="product-card">
                     <div className="pc-img-wrap">
                       {p.imageUrl
-                        ? <img className="pc-img" src= {getImageUrl(p.imageUrl)} loading="lazy" alt={p.name} />
+                        ? <img className="pc-img" src={getImageUrl(p.imageUrl)} loading="lazy" alt={p.name} />
                         : <div className="pc-img-placeholder"><Icon name="package" size={36} color="var(--muted)" /></div>}
                       {p.discount && <div className="pc-discount-badge">
                         {p.discount.label || `${p.discount.value}${p.discount.type === "percent" ? "%" : ""} OFF`}
@@ -358,3 +416,4 @@ export default function ProductDetail() {
     </main>
   );
 }
+

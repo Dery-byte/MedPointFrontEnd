@@ -201,12 +201,49 @@ function MartProductModal({ product, categories, onClose, onSaved }) {
   const [showOnStore, setShowOnStore] = useState(product?.showOnStore ?? true);
   const [featured, setFeatured] = useState(product?.featured || false);
   const [desc, setDesc] = useState(product?.description || "");
-  const [tags, setTags] = useState((product?.tags || []).join(", "));
-  const [variations, setVariations] = useState(product?.variations || []);
+  const [tags, setTags] = useState(() => {
+  // Check if product.tags exists
+  if (!product?.tags) return "";
+    // If it's already a string, return it
+  if (typeof product.tags === "string") return product.tags;
+
+  if (Array.isArray(product.tags)) return product.tags.join(", "); 
+  return "";});
+  // const [tags, setTags] = useState((product?.tags || []).join(", "));
+  // const [variations, setVariations] = useState(product?.variations || []);
+
+  // const [variations, setVariations] = useState(Array.isArray(product?.variations) ? product.variations : []);
+
+
+const [variations, setVariations] = useState([]);
+
+useEffect(() => {
+  if (product?.variations) {
+    try {
+      const parsed = typeof product.variations === 'string'
+        ? JSON.parse(product.variations)
+        : product.variations;
+      setVariations(Array.isArray(parsed) ? parsed : []);
+    } catch (error) {
+      console.error('Failed to parse variations:', error);
+      setVariations([]);
+    }
+  } else {
+    setVariations([]);
+  }
+}, [product?.variations]); // Re-run when product changes
 
   const [hasDiscount, setHasDiscount] = useState(!!product?.discount);
-  const [discType, setDiscType] = useState(product?.discount?.type || "percent");
-  const [discValue, setDiscValue] = useState(product?.discount?.value ?? "");
+  // const [discType, setDiscType] = useState(product?.discount?.type || "percent");
+  const [discType, setDiscType] = useState(product?.discountType?.toLowerCase() || "percent");
+
+  // const [discountType, setDiscountType] = useState(product?.discountType || "PERCENT");
+
+
+  const [discValue, setDiscValue] = useState(product?.discount ?? "");
+
+
+  // const [discValue, setDiscValue] = useState(product?.discount?.value ?? "");
   const [discLabel, setDiscLabel] = useState(product?.discount?.label || "");
   const [discEndsAt, setDiscEndsAt] = useState(product?.discount?.endsAt || "");
 
@@ -228,7 +265,7 @@ function MartProductModal({ product, categories, onClose, onSaved }) {
         showOnStore, featured,
         description: desc,
         tags: tags.split(",").map(t => t.trim()).filter(Boolean),
-        variations,
+        variations: JSON.stringify(variations), // 👈 Convert to JSON string
         discount: hasDiscount && discValue
           ? { type: discType, value: parseFloat(discValue), label: discLabel || null, endsAt: discEndsAt || null }
           : null,
@@ -647,7 +684,7 @@ function MartPanel() {
               : <table className="tbl">
                 <thead><tr>
                   {storefrontEnabled && <th>Image</th>}
-                  <th>Product</th><th>Category</th><th>Price</th><th>Stock</th>
+                  <th>Product</th><th>Category</th><th>Selling Price (GH₵) </th><th>Cost Price (GH₵)</th><th>Stock</th>
                   {storefrontEnabled && <th>Flags</th>}
                   <th>Actions</th>
                 </tr></thead>
@@ -655,6 +692,9 @@ function MartPanel() {
                   {filtered.length === 0 && <tr><td colSpan={storefrontEnabled ? 7 : 5} style={{ textAlign: "center", padding: 28, color: "var(--g400)" }}>No products found.</td></tr>}
                   {filtered.map(p => (
                     <tr key={p.id}>
+
+                      {/* <p>{JSON.stringify(p)}</p> */}
+
                       {storefrontEnabled && (
                         <td>
                           <div style={{ position: "relative", width: 48, height: 48, flexShrink: 0 }}>
@@ -662,7 +702,6 @@ function MartPanel() {
                               ? <img src={getImageUrl(p.imageUrl)} alt={p.name} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 6, display: "block" }} />
                               : <div style={{ width: 48, height: 48, borderRadius: 6, background: "var(--g100)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📦</div>
                             }
-                            {/* <p>{JSON.stringify(p)}</p> */}
                             <button
                               onClick={() => setModal({ type: "image", product: p })}
                               style={{ position: "absolute", bottom: -4, right: -4, width: 20, height: 20, borderRadius: "50%", background: "var(--p)", border: "2px solid white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: "white" }}
@@ -682,10 +721,22 @@ function MartPanel() {
                         <div style={{ fontWeight: 600 }}>{sym} {p.price.toFixed(2)}</div>
                         {p.discount && (
                           <span style={{ background: "var(--green)", color: "white", borderRadius: 4, padding: "1px 6px", fontSize: 11, fontWeight: 700 }}>
-                            {p.discount.type === "percent" ? `−${p.discount.value}%` : `−${sym}${p.discount.value}`}
+                            {p.discounType === "PERCENT" ? `−${p.discount}%` : `−${sym}${p.discount}`}
+                            {/* {p.discountType === "PERCENT"
+                              ? `−${p.discount}%`
+                              : `−${sym}${p.discount}`
+                            }
+                            {p.discountType} */}
                           </span>
                         )}
                       </td>
+                      <td>
+                        <div style={{ fontWeight: 600 }}>{sym} {p.costPrice.toFixed(2)}</div>
+                      </td>
+
+
+
+
                       <td>
                         {p.stock === 0
                           ? <span style={{ color: "var(--red)", fontWeight: 700, fontSize: 12 }}>Out of stock</span>
@@ -800,11 +851,16 @@ function DrugModal({ drug, onClose, onSaved }) {
   const [desc, setDesc] = useState(drug?.description || "");
   const [tags, setTags] = useState((drug?.tags || []).join(", "));
   const [hasDiscount, setHasDiscount] = useState(!!drug?.discount);
-  const [discType, setDiscType] = useState(drug?.discount?.type || "percent");
+  const [discType, setDiscType] = useState(drug?.discountType || "PERCENT");
   const [discValue, setDiscValue] = useState(drug?.discount?.value ?? "");
   const [discLabel, setDiscLabel] = useState(drug?.discount?.label || "");
   const [discEndsAt, setDiscEndsAt] = useState(drug?.discount?.endsAt || "");
   const [error, setError] = useState("");
+
+
+
+  
+
 
   const handleImage = e => { const f = e.target.files[0]; if (!f) return; setImageFile(f); setImgPrev(URL.createObjectURL(f)); };
 

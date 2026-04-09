@@ -31,17 +31,46 @@ function useRipple() {
 function getDiscountedPrice(price, discount) {
   if (!discount) return null;
   if (discount.type === "percent") return price * (1 - discount.value / 100);
-  if (discount.type === "fixed")   return Math.max(0, price - discount.value);
+  if (discount.ype === "fixed")   return Math.max(0, price - discount.value);
   return null;
 }
 
 /* ── Discount badge label ─────────────────────────────────────── */
-function discountLabel(discount, sym) {
+// function discountLabel(discount, sym) {
+//   if (!discount) return null;
+//   if (discount.label) return discount.label;
+//   if (discount.discounType === "PERCENT") return `${discount.value}% OFF`;
+//   return `Save ${sym}${discount.value}`;
+// }
+
+function getDiscountLabel(discount, discounType, sym) {
   if (!discount) return null;
-  if (discount.label) return discount.label;
-  if (discount.type === "percent") return `${discount.value}% OFF`;
-  return `Save ${sym}${discount.value}`;
+  return discounType === "PERCENT"
+    ? `${discount}% OFF`
+    : `Save ${sym}${Number(discount).toFixed(2)}`;
 }
+
+
+
+
+
+// Add this helper function inside your component or before
+const getVariationsArray = (variations) => {
+  if (!variations) return [];
+  
+  try {
+    // If it's a string, parse it; if it's already an array, use it
+    const parsed = typeof variations === 'string' 
+      ? JSON.parse(variations) 
+      : variations;
+    
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error('Error parsing variations:', error);
+    return [];
+  }
+};
+
 
 /* ═══════════════════════════════════════════════════════════════
    GRID CARD
@@ -55,17 +84,19 @@ export default function ProductCard({ product, layout = "grid" }) {
   const [btnRef, ripple]     = useRipple();
   const [adding, setAdding]  = useState(false);
   const [favBurst, setFavBurst] = useState(false);
-
+  const variationsArray = getVariationsArray(product.variations);
+  const hasVariations = variationsArray.length > 0;
   const inCart     = isInCart(product.id);
   const favorited  = isFav(product.id);
   const outOfStock = product.stock <= 0;
-  const hasVariations = product.variations?.length > 0;
-
+  // const hasVariations = product.variations?.length > 0;
   const saleActive      = product.onSale?.active && product.onSale?.newPrice != null;
   const discounted      = saleActive ? product.onSale.newPrice : getDiscountedPrice(product.price, product.discount);
   const originalForSale = saleActive ? product.onSale.oldPrice : product.price;
   const displayPrice    = discounted ?? product.price;
-  const label           = saleActive ? "On Sale" : discountLabel(product.discount, sym);
+  const label = saleActive ? "On Sale" : getDiscountLabel(product.discount, product.discounType, sym);
+
+  // const label           = saleActive ? "On Sale" : discountLabel(product.discount, sym);
 
 
   const handleAdd = (e) => {
@@ -104,7 +135,18 @@ export default function ProductCard({ product, layout = "grid" }) {
           {product.featured && <span className="plc-featured-tag"><Icon name="star" size={11} /> Featured</span>}
           <span className="plc-cat">{product.cat}</span>
           <h3 className="plc-name">{product.name}</h3>
-          {hasVariations && <span className="plc-variants-hint"><Icon name="grid" size={11} /> {product.variations.length} option type{product.variations.length > 1 ? "s" : ""}</span>}
+          {hasVariations && <span className="plc-variants-hint"><Icon name="grid" size={11} /> 
+          
+          
+          {/* {product.variations.length} option type{product.variations.length > 1 ? "s" : ""} */}
+          
+          {hasVariations && (
+  <span className="plc-variants-hint">
+    <Icon name="grid" size={11} /> 
+    {variationsArray.length} option type{variationsArray.length > 1 ? "s" : ""}
+  </span>
+)}
+          </span>}
           {product.lowStock && !outOfStock && (
             <span className="plc-low-stock"><Icon name="alert" size={12} /> Only {product.stock} left</span>
           )}
@@ -177,7 +219,20 @@ export default function ProductCard({ product, layout = "grid" }) {
 
         {hasVariations && (
           <p className="pc-variants-tag">
-            <Icon name="grid" size={12} /> {product.variations.map(v => v.name).join(" · ")}
+            <Icon name="grid" size={12} /> 
+            
+            
+            
+            {/* {product.variations.map(v => v.name).join(" · ")} */}
+
+ {/* ✅ UPDATED - use variationsArray instead of product.variations */}
+          {hasVariations && (
+            <span className="plc-variants-hint">
+              <Icon name="grid" size={11} /> 
+              {variationsArray.length} option type{variationsArray.length > 1 ? "s" : ""}
+            </span>
+          )}
+
           </p>
         )}
 
