@@ -22,24 +22,37 @@ import storeApi from "./storeApi";
  * POST /payments/initialize
  * Returns { success, reference, accessCode, authorizationUrl }
  */
-export async function initializePayment({ email, amount, callbackUrl, description }) {
+export async function initializePayment({ email, amount, callbackUrl, description, phone, channel }) {
   const { data } = await api.post("/payments/initialize", {
     email,
     amount,
     currency: "GHS",
     callbackUrl,
     description,
+    phone,
+    channel,
   });
   return data;
 }
 
-/**
- * Verify a completed Paystack transaction by reference.
- * GET /payments/verify/{reference}
- * Returns { success, reference, status, amount }
- */
 export async function verifyPayment(reference) {
   const { data } = await api.get(`/payments/verify/${reference}`);
+  return data;
+}
+
+/**
+ * Verify OTP for a pending payment (Moolre).
+ * POST /payments/initialize (the same endpoint handles OTP if otpCode is present)
+ */
+export async function verifyPaymentOtp({ email, amount, phone, otpCode, providerReference, reference }) {
+  const { data } = await api.post("/payments/initialize", {
+    email,
+    amount,
+    phone,
+    otpCode,
+    providerReference,
+    reference,
+  });
   return data;
 }
 

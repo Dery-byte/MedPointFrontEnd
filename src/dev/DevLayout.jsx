@@ -7,12 +7,14 @@ import CurrencyPanel      from "./panels/CurrencyPanel";
 import ExportPanel        from "./panels/ExportPanel";
 import ProfilesPanel      from "./panels/ProfilesPanel";
 import FeatureFlagsPanel  from "./panels/FeatureFlagsPanel";
+import PaymentPanel       from "./panels/PaymentPanel";
 
 const NAV_ITEMS = [
   { id: "branding",  label: "Branding",      icon: "✏️" },
   { id: "theme",     label: "Theme",         icon: "🎨" },
   { id: "modules",   label: "Modules",       icon: "🧩" },
   { id: "profiles",  label: "Profiles",      icon: "📋" },
+  { id: "payment",   label: "Payment",       icon: "💳" },
   { id: "flags",     label: "Feature Flags", icon: "🚩" },
   { id: "currency",  label: "Currency",      icon: "💰" },
   { id: "export",    label: "Export",        icon: "📤" },
@@ -23,6 +25,7 @@ const PANELS = {
   theme:     <ThemePanel />,
   modules:   <ModulesPanel />,
   profiles:  <ProfilesPanel />,
+  payment:   <PaymentPanel />,
   flags:     <FeatureFlagsPanel />,
   currency:  <CurrencyPanel />,
   export:    <ExportPanel />,

@@ -78,6 +78,7 @@ export const DEFAULT_CONFIG = {
   paymentMomo:    true,
   paymentCard:    true,
   paymentCash:    false,          // cash on delivery
+  paymentGateway: "paystack",     // "paystack" | "moolre"
 
   // ── Admin ────────────────────────────────────────────────────────
   apiBaseUrl:     "",             // overrides VITE_API_URL if set

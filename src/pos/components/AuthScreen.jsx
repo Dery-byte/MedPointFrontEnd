@@ -114,12 +114,6 @@ export default function AuthScreen() {
         <button className="btn btn-p btn-lg btn-full" onClick={doLogin} disabled={loading}>
           {loading ? "Signing in…" : "Sign In →"}
         </button>
-        <p style={{ fontSize: 12, color: "var(--g400)", textAlign: "center", marginTop: 16, lineHeight: 1.7 }}>
-          <strong>Admin:</strong> admin@medpoint.com / admin123<br />
-          <strong>Drug Store:</strong> pharma@medpoint.com / pass123<br />
-          <strong>Mart:</strong> mart@medpoint.com / pass123 &nbsp;|&nbsp; <strong>Hotel:</strong> hotel@medpoint.com / pass123<br />
-          <strong>Restaurant:</strong> resto@medpoint.com / pass123
-        </p>
       </div>
     </div>
   );

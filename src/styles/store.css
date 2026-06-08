@@ -2509,3 +2509,80 @@ h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.02em; }
     footer           { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
   }
 }
+
+/* --- Moolre OTP Modal --- */
+.otp-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+}
+
+.otp-modal {
+  background: var(--surface, #fff);
+  width: 100%;
+  max-width: 450px;
+  border-radius: var(--r-lg, 1.5rem);
+  padding: 2.5rem;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  border: 1px solid var(--border, #e5e7eb);
+  animation: fadeInUp 0.3s ease;
+}
+
+.otp-modal h3 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 1rem;
+  color: var(--text, #111827);
+  font-family: "Cormorant Garamond", serif;
+}
+
+.otp-modal p {
+  color: var(--text-2, #6b7280);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.otp-modal .form-input {
+  text-align: center;
+  max-width: 280px;
+  margin: 0 auto;
+  display: block;
+}
+
+.otp-modal-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+/* Polling Styles */
+.poll-status {
+  margin-top: 1.5rem;
+}
+.poll-progress-bar {
+  height: 6px;
+  background: var(--cream-dark);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.poll-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+.text-center { text-align: center; }
+.text-sm { font-size: 0.875rem; }
+.text-xs { font-size: 0.75rem; }
+.text-muted { color: var(--muted); }
+.mt-2 { margin-top: 0.5rem; }
+.mt-4 { margin-top: 1rem; }
+.mb-4 { margin-bottom: 1rem; }
+.my-4 { margin-top: 1rem; margin-bottom: 1rem; }

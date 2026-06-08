@@ -4,7 +4,8 @@ import Icon from "../../shared/components/Icon";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../components/Toast";
-import { PaymentService, submitOrder, generateReference, initializePayment, verifyPayment } from "../services/orderService";
+import { useConfig } from "../../config/ConfigContext";
+import { PaymentService, submitOrder, generateReference, initializePayment, verifyPayment, verifyPaymentOtp } from "../services/orderService";
 
 // ── Config ───────────────────────────────────────────────────────────────────
 const PAYSTACK_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY || "pk_test_DUMMY_KEY_REPLACE_ME";
@@ -53,6 +54,9 @@ export default function Checkout() {
   const { customer }            = authState;
   const { toast }               = useToast();
   const navigate                = useNavigate();
+  const { config, fmt: configFmt } = useConfig();
+  const gateway = config.paymentGateway || "paystack";
+  const gatewayLabel = gateway === "moolre" ? "Moolre" : "Paystack";
 
   // ── Step 1 fields ──────────────────────────────────────────────────────────
   const [name,         setName]         = useState(customer?.name  || "");
@@ -63,7 +67,7 @@ export default function Checkout() {
   const [deliveryType, setDeliveryType] = useState("standard");
 
   // ── Step 2 fields ──────────────────────────────────────────────────────────
-  const [payMethod,    setPayMethod]    = useState("paystack");
+  const [payMethod,    setPayMethod]    = useState("online");
   const [momoNetwork,  setMomoNetwork]  = useState("mtn");
   const [momoPhone,    setMomoPhone]    = useState("");
   const [cardNumber,   setCardNumber]   = useState("");
@@ -79,6 +83,13 @@ export default function Checkout() {
   const [processing, setProcessing] = useState(false);
   const [errors,     setErrors]     = useState({});
   const [summaryOpen,setSummaryOpen] = useState(false);
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otpInternalRef, setOtpInternalRef] = useState("");
+  const [otpProviderRef, setOtpProviderRef] = useState("");
+  const [otpVal,      setOtpVal]      = useState("");
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [waitingForPayment, setWaitingForPayment] = useState(false);
+  const [pollAttempts, setPollAttempts] = useState(0);
 
   // ── Pricing ───────────────────────────────────────────────────────────────
   const isPickup         = deliveryType === "pickup";
@@ -101,7 +112,7 @@ export default function Checkout() {
 
   const step2Valid = (() => {
     if (processing) return false;
-    if (payMethod === "paystack") return true;
+    if (payMethod === "online")   return true;
     if (payMethod === "momo")     return momoPhone.replace(/\D/g, "").length >= 10;
     // card
     return (
@@ -137,7 +148,7 @@ export default function Checkout() {
   };
 
   const validatePayment = () => {
-    if (payMethod === "paystack") return true; // popup handles it
+    if (payMethod === "online") return true; // popup handles it
     const e = {};
     if (payMethod === "momo") {
       if (momoPhone.replace(/\D/g, "").length < 10)
@@ -190,8 +201,8 @@ export default function Checkout() {
     });
   }
 
-  /** Paystack redirect flow — calls backend to initialize, then redirects to Paystack */
-  async function handlePaystackPay() {
+  /** Online redirect flow — calls backend to initialize, then redirects to gateway */
+  async function handleOnlinePay() {
     const billingEmail = email.trim() || `${phone.replace(/\D/g, "")}@medpointstore.com`;
     setProcessing(true);
     try {
@@ -200,19 +211,91 @@ export default function Checkout() {
         email:       billingEmail,
         amount:      grandTotal,
         description: `MedPoint order — ${name}`,
+        phone:       phone, 
       });
-      if (!init.success) throw new Error(init.message || "Could not initialise payment");
 
-      // 2. Persist full order snapshot so OrderConfirmation can recover it after redirect
+      // 2. Persist full order snapshot 
       localStorage.setItem(`pending_order_${init.reference}`, JSON.stringify({
-        name, email: billingEmail, phone, deliveryAddress, items, grandTotal, payMethod: "PAYSTACK",
+        name, email: billingEmail, phone, deliveryAddress, items, grandTotal, payMethod: gateway.toUpperCase(),
       }));
 
-      // 3. Redirect browser to Paystack hosted checkout — backend callback handles the return
+      // 3. Redirect browser to hosted checkout
       window.location.href = init.authorizationUrl;
     } catch (err) {
+      const errorData = err.response?.data;
+      if (errorData?.message?.startsWith("OTP_REQUIRED:")) {
+        const parts = errorData.message.split(":");
+        setOtpInternalRef(parts[1]);
+        setOtpProviderRef(parts[2] === "null" ? null : parts[2]);
+        setOtpRequired(true);
+        setProcessing(false);
+        return;
+      }
       setProcessing(false);
-      toast({ message: err.message || "Could not open payment page. Please try again.", type: "error" });
+      toast({ message: errorData?.message || err.message || `Could not open ${gatewayLabel} payment page. Please try again.`, type: "error" });
+    }
+  }
+
+  async function handleVerifyOtp() {
+    setOtpVerifying(true);
+    const billingEmail = email.trim() || `${phone.replace(/\D/g, "")}@medpointstore.com`;
+    try {
+      const res = await verifyPaymentOtp({
+        email: billingEmail,
+        amount: grandTotal,
+        phone: phone,
+        otpCode: otpVal,
+        providerReference: otpProviderRef,
+        reference: otpInternalRef,
+      });
+
+      if (res.message === "PROMPT_TRIGGERED") {
+        toast({ message: "Verification successful! Please authorize on your phone.", type: "success" });
+        setOtpRequired(false);
+        setWaitingForPayment(true);
+        setOtpVal("");
+        // Automatic polling removed at user request
+      } else if (res.message.startsWith("OTP_VERIFIED:")) {
+         const finalRes = await initializePayment({
+           email: billingEmail,
+           amount: grandTotal,
+           phone: phone,
+           providerReference: otpProviderRef,
+           reference: otpInternalRef
+         });
+         if (finalRes.message === "PROMPT_TRIGGERED") {
+           toast({ message: "Verification successful! Please authorize on your phone.", type: "success" });
+           setOtpRequired(false);
+           setWaitingForPayment(true);
+           setOtpVal("");
+           // Automatic polling removed at user request
+         } else {
+           throw new Error(finalRes.message || "Failed to trigger payment prompt");
+         }
+      }
+    } catch (err) {
+      toast({ message: err.response?.data?.message || err.message || "OTP verification failed", type: "error" });
+    } finally {
+      setOtpVerifying(false);
+    }
+  }
+
+  async function handleCheckStatus() {
+    setOtpVerifying(true); // Reuse verifying state for loading spinner on button
+    try {
+      const status = await verifyPayment(otpInternalRef);
+      if (status.message?.toLowerCase().includes("success") || status.status?.toLowerCase() === "success" || status.code === "TS00") {
+        toast({ message: "Payment confirmed! Finishing your order...", type: "success" });
+        await finaliseOrder(gateway.toUpperCase(), otpInternalRef);
+      } else if (status.message?.toLowerCase().includes("fail") || status.code === "TF00") {
+        toast({ message: "Payment not yet confirmed. Please authorize on your phone first.", type: "warning" });
+      } else {
+        toast({ message: "Payment still pending. Please authorize on your phone and try again.", type: "info" });
+      }
+    } catch (err) {
+      toast({ message: "Error checking status. Please try again.", type: "error" });
+    } finally {
+      setOtpVerifying(false);
     }
   }
 
@@ -244,7 +327,7 @@ export default function Checkout() {
   }
 
   function handlePay() {
-    if (payMethod === "paystack") { handlePaystackPay(); return; }
+    if (payMethod === "online") { handleOnlinePay(); return; }
     handleManualPay();
   }
 
@@ -418,11 +501,11 @@ export default function Checkout() {
               <div className="pay-method-tabs">
                 <button
                   type="button"
-                  className={`pay-method-tab${payMethod === "paystack" ? " pay-method-tab-active" : ""}`}
-                  onClick={() => setPayMethod("paystack")}
+                  className={`pay-method-tab${payMethod === "online" ? " pay-method-tab-active" : ""}`}
+                  onClick={() => setPayMethod("online")}
                 >
                   <Icon name="credit-card" size={18} />
-                  <span>Pay with Paystack</span>
+                  <span>Pay with {gatewayLabel}</span>
                   <span className="pay-recommended-badge">Recommended</span>
                 </button>
                 <button
@@ -443,22 +526,22 @@ export default function Checkout() {
                 </button>
               </div>
 
-              {/* ── Paystack ─────────────────────────────────────────────── */}
-              {payMethod === "paystack" && (
+              {/* ── Online Gateway ─────────────────────────────────────────────── */}
+              {payMethod === "online" && (
                 <div className="pay-form paystack-info-panel">
                   <div className="paystack-logo-row">
                     <div className="paystack-badge">
                       <Icon name="lock" size={14} color="var(--primary)" />
-                      Secured by Paystack
+                      Secured by {gatewayLabel}
                     </div>
                   </div>
                   <p className="paystack-desc">
-                    Click <strong>Pay {fmt(grandTotal)}</strong> below. A secure Paystack popup will open where you can pay with:
+                    Click <strong>Pay {fmt(grandTotal)}</strong> below. A secure {gatewayLabel} page will open where you can pay with:
                   </p>
                   <ul className="paystack-methods-list">
-                    <li><Icon name="credit-card" size={13} /> Debit / Credit Card (Visa, Mastercard)</li>
-                    <li><Icon name="momo" size={13} /> Mobile Money (MTN, Vodafone, AirtelTigo)</li>
-                    <li><Icon name="building-2" size={13} /> Bank transfer</li>
+                    <li><Icon name="credit-card" size={13} /> Debit / Credit Card</li>
+                    <li><Icon name="momo" size={13} /> Mobile Money</li>
+                    {gateway === "paystack" && <li><Icon name="building-2" size={13} /> Bank transfer</li>}
                   </ul>
                 </div>
               )}
@@ -579,6 +662,69 @@ export default function Checkout() {
               <p className="checkout-secure-note">
                 <Icon name="lock" size={12} color="var(--muted)" /> Secured &amp; encrypted checkout
               </p>
+
+              {/* ── Moolre OTP Modal ── */}
+              {otpRequired && (
+                <div className="otp-modal-overlay">
+                  <div className="otp-modal">
+                    <h3>Verify Payment</h3>
+                    <p>A verification code has been sent to <strong>{phone}</strong> via SMS. Please enter it below to proceed.</p>
+                    <div className="form-field">
+                      <input 
+                        className="form-input text-center" 
+                        value={otpVal} 
+                        onChange={e => setOtpVal(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="000000"
+                        style={{ fontSize: "1.5rem", letterSpacing: "0.5em", fontWeight: 700 }}
+                      />
+                    </div>
+                    <div className="otp-modal-btns">
+                      <button className="btn-outline" onClick={() => setOtpRequired(false)}>Cancel</button>
+                      <button className="btn-primary" onClick={handleVerifyOtp} disabled={otpVal.length < 6 || otpVerifying}>
+                        {otpVerifying ? "Verifying..." : "Confirm Code"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Payment Waiting Modal ── */}
+              {waitingForPayment && (
+                <div className="otp-modal-overlay">
+                  <div className="otp-modal text-center">
+                    <div className="mb-4">
+                      <Icon name="loader" size={48} className="spin" color="var(--primary)" />
+                    </div>
+                    <h3>Payment Initiated</h3>
+                    <p>Please authorize the payment on your mobile device.</p>
+                    <p className="text-sm text-muted">Once you have entered your PIN on your phone, click the button below to confirm your order.</p>
+                    
+                    <div className="co-divider my-4" />
+                    
+                    <div className="otp-modal-btns mt-4">
+                      <button 
+                        className="btn-primary w-full" 
+                        onClick={handleCheckStatus}
+                        disabled={otpVerifying}
+                      >
+                        {otpVerifying ? (
+                          <Icon name="loader" size={18} className="spin mr-2" />
+                        ) : (
+                          <Icon name="check-circle" size={18} className="mr-2" />
+                        )}
+                        Confirm Payment
+                      </button>
+                      <button 
+                        className="btn-outline btn-sm mt-2" 
+                        onClick={() => setWaitingForPayment(false)}
+                        disabled={otpVerifying}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
